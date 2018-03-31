@@ -16,4 +16,4 @@ class smallNORB(Dataset):
     
         self.	
   
-    def  __retrive__con tinue to find whtat tobe 
+    try push from git2go
