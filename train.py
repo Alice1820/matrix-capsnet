@@ -4,9 +4,16 @@ import argparse
 from tqdm import tqdm
 import os
 import random
+import numpy as np
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
+from torch.autograd import Variable
+from torch.optim import lr_scheduler
+from torchvision import datasets
+from torchvision import transforms
+from torchvision.utils import make_grid
 import torchnet as tnt
 from torchnet.logger import VisdomPlotLogger, VisdomLogger
 from torchnet.engine import Engine
@@ -42,14 +49,17 @@ if __name__ == '__main__':
     parser.add_argument('--routing', type=str, default='EM_routing', metavar='N', help='routing to use: angle_routing, EM_routing')
     parser.add_argument('--use-recon', type=bool, default=True, metavar='N', help='use reconstruction loss or not')
     parser.add_argument('--num-workers', type=int, default=16, metavar='N', help='num of workers to fetch data')
-    parser.add_argument('--multi-gpu', default=True, help='if use multiple gpu(default: False)')
+    parser.add_argument('--multi-gpu', default=False, help='if use multiple gpu(default: False)')
+    args = parser.parse_args()
+
+    use_cuda = not args.disable_cuda and torch.cuda.is_available()
 
     A, B, C, D, E, r = 32, 32, 32, 32, args.num_classes, args.r  # a classic CapsNet
     if args.multi_gpu:
         print("Enable multi gpus")
-        model = nn.parallel.DataParallel(CapsNet(A, B, C, D, E, r))
+        model = nn.parallel.DataParallel(CapsNet(args.batch_size, A, B, C, D, E, r))
     else:
-        model = CapsNet(A, B, C, D, E, r)
+        model = CapsNet(args.batch_size, A, B, C, D, E, r)
 
     capsule_loss = CapsuleLoss()
 
