@@ -1,3 +1,5 @@
+# 2018.3.29
+
 import pickle
 import torch
 from torch.utils.data import Dataset
@@ -11,10 +13,10 @@ class smallNORB(Dataset):
 
         with open('data/' + split + '.pkl', 'rb') as f:
             self.data = pickle.load(f)
-    
+
         self.root_dir = root
         self.img_dir = os.path.join(root, 'smallnorb_' + split)
-    
+
 		self.transform = transforms.Compose([
 									Scale(96, 96),
 									transforoms.ToTensor()
@@ -24,7 +26,7 @@ class smallNORB(Dataset):
 									transforms.Pad(3),
 									transforms.RandomCrop([96, 96]),
 									transforoms.ToTensor()
-									
+
 		self.if_aug = (split==‘train’)
 
 		self.split = split
@@ -33,7 +35,7 @@ class smallNORB(Dataset):
 	def __getitem__(self, index):
 
 		imgfile, label = self.data[index]
-		
+
 		# dir_path = os.path.join(self.root_dir, ‘smallnorb_’ + self.split, label, label + )
 		img_path = os.path.join(self.root_dir, imgfile)
 		img = imread(img_path)
@@ -50,11 +52,11 @@ class smallNORB(Dataset):
 
 
 	def collate_data(batch):
-	
+
 		imgs, labels = [], []
 		batch_size = len(batch)
 
 		for i, (img, label) in enumerate(batch):
 			imgs.append(img)
 			labels.append(label)
-		return torch.stack(imgs)m torch.LongTensor(labels)
+		return torch.stack(imgs), torch.LongTensor(labels)
