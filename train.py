@@ -61,8 +61,6 @@ if __name__ == '__main__':
     else:
         model = CapsNet(args.batch_size, A, B, C, D, E, r)
 
-    capsule_loss = CapsuleLoss()
-
     meter_loss = tnt.meter.AverageValueMeter()
     meter_accuracy = tnt.meter.ClassErrorMeter(accuracy=True)
     confusion_meter = tnt.meter.ConfusionMeter(args.num_classes, normalized=True)
@@ -132,6 +130,8 @@ if __name__ == '__main__':
                     lambda_ += 2e-1 / steps
                 if m < 0.9:
                     m += 2e-1 / steps
+
+                capsule_loss = CapsuleLoss(m)
 
                 optimizer.zero_grad()
 

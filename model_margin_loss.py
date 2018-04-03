@@ -141,18 +141,19 @@ class ConvCaps(nn.Module):
 		return poses.view(self.b, self.C, w, w, -1), activations.view(self.b, self.C, w, w)
 
 class CapsNet(nn.Module):
-		def __init__(self, batch_size, A=32, B=32, C=32, D=32, E=10, r=3):
+		def __init__(self, batch_size, img_size=28, A=32, B=32, C=32, D=32, E=10, r=3):
 			super(CapsNet, self).__init__()
+			self.num_classes = E
 			self.conv1 = nn.Conv2d(in_channels=1, out_channels=A, kernel_size=5, stride=2)
 			self.primary_caps = PrimaryCaps(A, B)
 			self.convcaps1 = ConvCaps(batch_size, B, C, kernel=3, stride=2, iteration=r, coordinate_add=False, transform_share=False)
 			self.convcaps2 = ConvCaps(batch_size, C, D, kernel=3, stride=1, iteration=r, coordinate_add=False, transform_share=False)
 			self.classcaps = ConvCaps(batch_size, D, E, kernel=0, stride=1, iteration=r, coordinate_add=True, transform_share=True)
-			self.decoder = nn.Sequential(nn.Linear(16 * 10, 512),
+			self.decoder = nn.Sequential(nn.Linear(16 * E, 512),
 										nn.ReLU(inplace=True),
 										nn.Linear(512, 1024),
 										nn.ReLU(inplace=True),
-										nn.Linear(1024, 784),
+										nn.Linear(1024, img_size ** 2),
 										nn.Sigmoid())
 
 		def forward(self, x, lambda_, y=None):  # b,1,28,28
@@ -169,15 +170,16 @@ class CapsNet(nn.Module):
 			y = y.squeeze()
 
 			# convert to one-hot
-			y = Variable(torch.sparse.torch.eye(10)).cuda().index_select(dim=0, index=y)
+			y = Variable(torch.sparse.torch.eye(self.num_classes)).cuda().index_select(dim=0, index=y)
 
 			reconstructions = self.decoder((p * y[:, :, None]).view(p.size(0), -1)) # b,28*28
 
 			return a.squeeze(), reconstructions
 
 class CapsuleLoss(nn.Module):
-	def __init__(self, m):
+	def __init__(self, m, loss_type):
 		super(CapsuleLoss, self).__init__()
+		self.loss_type = loss_type
 		self.reconstruction_loss = nn.MSELoss(size_average=False)
 		self.multi_magin_loss = nn.MultiMarginLoss(p=2, margin=m)
 
@@ -191,7 +193,7 @@ class CapsuleLoss(nn.Module):
 		left = F.relu(0.9 - x, inplace=True) ** 2
 		right = F.relu(x - 0.1, inplace=True) ** 2
 
-		labels = Variable(torch.sparse.torch.eye(10).cuda()).index_select(dim=0, index=labels)
+		labels = Variable(torch.sparse.torch.eye(x.size(1)).cuda()).index_select(dim=0, index=labels)
 
 		margin_loss = labels * left + 0.5 * (1. - labels) * right
 		margin_loss = margin_loss.sum()
@@ -205,8 +207,8 @@ class CapsuleLoss(nn.Module):
 	def forward(self, images, output, labels, m, recon):
 		# main_loss = getattr(self, args.loss)(output, labels, m)
 		# main_loss = getattr(self, 'spread_loss')(output, labels, m)
-		# main_loss = getattr(self, 'margin_loss')(output, labels, m)
-		main_loss = self.multi_magin_loss(output, labels, m)
+		main_loss = getattr(self, self.loss_type)(output, labels, m)
+		# main_loss = self.multi_magin_loss(output, labels)
 		# if args.use_recon:
 		recon_loss = self.reconstruction_loss(recon, images)
 		main_loss += 0.0005 * recon_loss
